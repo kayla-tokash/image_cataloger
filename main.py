@@ -3,6 +3,9 @@ from os import listdir
 from os.path import isfile, isdir, join
 import sqlite3
 
+def index_files(path, *extensions):
+    pass
+
 
 def list_files_in_directory(path, files_only, dir_only):
     if files_only and dir_only:
@@ -39,18 +42,28 @@ class CatalogDatabase:
     def create_catalog(self):
         # Create the database using schema
         self.connect_to_catalog()
-        self.cursor.execute("CREATE TABLE images(file_path, date, tags)")
-        pass
+        self.cursor.execute("CREATE TABLE images(file_path, date, tags, hashsum, sorted INTEGER DEFAULT 0)")
+
 
     def add_file_to_catalog(self, file_path, *tags):
         list_of_tags = ','.join(tags)
         date_string = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        self.cursor.execute(f"INSERT INTO images VALUES ('{file_path}', '{date_string}', '{list_of_tags}')")
+        # TODO shasum the hash of the file
+        hashsum = ""
+        self.cursor.execute(
+            f"INSERT INTO images VALUES ('{file_path}', '{date_string}', '{list_of_tags}', '{hashsum}')")
         self.connection.commit()
 
     def get_all_files(self):
-        pass
+        result = self.cursor.execute("SELECT * FROM images")
 
-    def get_tags_for_files(self, file_path):
-        pass
+    def update_file_in_catalog(self, file_path, hashsum=None, *tags):
+        list_of_tags = ','.join(tags)
+        self.cursor.execute(
+            f"UPDATE images SET tags = '{list_of_tags}' WHERE images.file_path = '{file_path}' AND hassum = '{hashsum}'")
+        self.connection.commit()
 
+    def remove_file_from_catalog(self, file_path, hashsum=None):
+        self.cursor.execute(
+            f"DELETE FROM images WHERE images.file_path = '{file_path}' AND hassum = '{hashsum}'")
+        self.connection.commit()
