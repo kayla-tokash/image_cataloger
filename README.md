@@ -1,4 +1,4 @@
-# File Cataloging Tool
+# Image Cataloging Tool
 
 ## Description
 
