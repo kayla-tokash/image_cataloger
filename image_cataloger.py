@@ -2,6 +2,7 @@
 
 from os import listdir
 from os.path import isfile, isdir, join
+import re
 import ollama
 
 # TODO asynchronously index files
@@ -20,7 +21,7 @@ def get_file_tags_from_ai(image_file_path):
     # Use vision enabled AI, and file metadata to help categorize the images
     # https://ollama.com/library/llava
 
-    # Tags vary a lot because AI is not deterministic
+    # Tags vary a lot because AI is not deterministic. This tries to normalize it
 
     # The AI "llava" usually gives short plaintext description of the image,
     # followed by a line "Tags:" and a bulleted list of "tags" that vary in format.
@@ -38,13 +39,16 @@ def get_file_tags_from_ai(image_file_path):
 
     tags = []
     for line in result['message']['content'].split('\n'):
-        cleaned_tag = line.replace('-','').replace('#','').replace(' ','').upper()
+        cleaned_tag = (
+            re.sub(r"[-# .0-9]","",line).upper())
+
         if len(cleaned_tag) > 0:
             tags.append(cleaned_tag)
 
     print(f"Tags for \"{image_file_path}\": {tags}")
 
     return tags
+
 
 def get_file_tags_from_metadata(file_list):
     pass
