@@ -1,10 +1,3 @@
-"""
-EXAMPLE:
-    >>> import image_cataloger
-    >>> db = image_cataloger.CatalogDatabase()
-    >>> for f in image_cataloger.index_files("../../../Downloads", "png", "jpg", "bmp"): db.add_file_to_catalog(file_path)
-"""
-
 #### TODO Separate the indexer to a new file
 
 from os import listdir
@@ -48,6 +41,8 @@ def get_file_tags_from_ai(image_file_path):
         cleaned_tag = line.replace('-','').replace('#','').replace(' ','').upper()
         if len(cleaned_tag) > 0:
             tags.append(cleaned_tag)
+
+    print(f"Tags for \"{image_file_path}\": {tags}")
 
     return tags
 
@@ -269,13 +264,22 @@ class CatalogDatabase:
             elif hashsum:
                 file_id = self.cursor.execute(
                     f"SELECT file_id FROM images WHERE images.hashsum = '{hashsum}' LIMIT 1")
+        print(f"New tags: {new_tags}")
         for tag in new_tags:
-            tag_count = self.cursor.execute(f"SELECT count(*) WHERE tag_name = '{tag}'")
+            print(f"Adding {tag} to file with ID {file_id} (Name: {file_path})")
+            tag_count = self.cursor.execute(f"SELECT count(*) FROM tags WHERE tag_name = '{tag}'").fetchone()[0]
             if tag_count == 0:
+                print(f"Tag {tag} does not exists, adding")
                 self.cursor.execute(f"INSERT INTO tags (tag_name) VALUES ('{tag}')")
-            new_tag_id = self.cursor.execute(f"SELECT tag_id WHERE tag_name = '{tag}' LIMIT 1")
+                self.connection.commit()
+            else:
+                print(f"Tag {tag} already exists")
+            new_tag_id = self.cursor.execute(f"SELECT tag_id FROM tags WHERE tag_name = '{tag}' LIMIT 1").fetchone()[0]
+            print(f"New tag ID is {new_tag_id} for {tag}")
             self.cursor.execute(f"INSERT INTO file_tags (file_id, tag_id) VALUES ({file_id}, {new_tag_id})")
-        self.connection.commit()
+            self.connection.commit()
+            print(f"Tag complete!")
+        print(f"Done tagging folder!")
 
 
     def remove_tags_from_file_in_catalog(self, file_path = None, hashsum = None, *remove_tags):
@@ -306,8 +310,11 @@ class CatalogDatabase:
 
 if __name__ == "__main__":
     db = CatalogDatabase()
+    print("Created catalog database")
     for file_path in index_files("../../../Downloads", "png", "jpg", "bmp"):
         db.add_file_to_catalog(file_path)
+        print(f"Added {file_path} to catalog")
         for file_id, _, _, _, _ in db.get_files(file_path):
             new_tags = get_file_tags_from_ai(file_path)
-            db.add_tags_to_file_in_catalog(file_id, new_tags)
+            print(f"New tags: {new_tags}")
+            db.add_tags_to_file_in_catalog(file_id, None, None, *new_tags)
