@@ -1,3 +1,10 @@
+"""
+EXAMPLE:
+    >>> import image_cataloger
+    >>> db = image_cataloger.CatalogDatabase()
+    >>> for f in image_cataloger.index_files("../../../Downloads", "png", "jpg", "bmp"): db.add_file_to_catalog(f)
+"""
+
 #### TODO Separate the indexer to a new file
 
 from os import listdir
