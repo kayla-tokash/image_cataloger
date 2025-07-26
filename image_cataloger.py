@@ -2,13 +2,14 @@
 EXAMPLE:
     >>> import image_cataloger
     >>> db = image_cataloger.CatalogDatabase()
-    >>> for f in image_cataloger.index_files("../../../Downloads", "png", "jpg", "bmp"): db.add_file_to_catalog(f)
+    >>> for f in image_cataloger.index_files("../../../Downloads", "png", "jpg", "bmp"): db.add_file_to_catalog(file_path)
 """
 
 #### TODO Separate the indexer to a new file
 
 from os import listdir
 from os.path import isfile, isdir, join
+import ollama
 
 # TODO asynchronously index files
 def index_files(path, *extensions):
@@ -22,7 +23,7 @@ def index_files(path, *extensions):
     return filtered_files
 
 
-def get_file_tags_from_ai(file_list):
+def get_file_tags_from_ai(image_file_path):
     # Use vision enabled AI, and file metadata to help categorize the images
     # https://ollama.com/library/llava
 
@@ -33,8 +34,22 @@ def get_file_tags_from_ai(file_list):
 
     # Format tags to the same letter casing, and remove symbols and spaces might be
     # the best way to make it consistent
-    pass
+    result = ollama.chat(
+        model='llava',
+        messages=[{
+                'role': 'user',
+                'content': 'create a list of tags that describe this image:',
+                'images': [image_file_path]
+        }]
+    )
 
+    tags = []
+    for line in result['message']['content'].split('\n'):
+        cleaned_tag = line.replace('-','').replace('#','').replace(' ','').upper()
+        if len(cleaned_tag) > 0:
+            tags.append(cleaned_tag)
+
+    return tags
 
 def get_file_tags_from_metadata(file_list):
     pass
@@ -199,24 +214,24 @@ class CatalogDatabase:
         if file_path and hashsum:
             return self.cursor.execute(f"""
                 SELECT * FROM images 
-                    WHERE images.file_path = '{file_path}'
-                    AND images.hashsum = '{hashsum}'
-                    AND images.status = {status}""")
+                    WHERE file_path = '{file_path}'
+                    AND hashsum = '{hashsum}'
+                    AND status = {status}""")
         elif file_path:
             return self.cursor.execute(f"""
                 SELECT * FROM images 
-                    WHERE images.file_path = '{file_path}'
-                    AND images.status = {status}""")
+                    WHERE file_path = '{file_path}'
+                    AND status = {status}""")
         elif hashsum:
             return self.cursor.execute(f"""
                 SELECT * FROM images 
-                    WHERE images.hashsum = '{hashsum}'
-                    AND images.status = {status}""")
+                    WHERE hashsum = '{hashsum}'
+                    AND status = {status}""")
         else:
             if status == self.STATUS_ANY:
                 return self.cursor.execute("SELECT * FROM images")
             else:
-                return self.cursor.execute(f"SELECT * FROM images WHERE images.status = {status}")
+                return self.cursor.execute(f"SELECT * FROM images WHERE status = {status}")
 
 
     def get_tags_for_file(self, file_path = None, hashsum = None):
@@ -242,21 +257,24 @@ class CatalogDatabase:
             """)
 
 
-    def add_tags_to_file_in_catalog(self, file_path = None, hashsum = None, *new_tags):
-        assert file_path is not None or hashsum is not None
-        file_ids = None
-        if file_path and hashsum:
-            file_ids = self.cursor.execute(
-                f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' AND images.hashsum = '{hashsum}'")
-        elif file_path:
-            file_ids = self.cursor.execute(
-                f"SELECT file_id FROM images WHERE images.file_path = '{file_path}'")
-        elif hashsum:
-            file_ids = self.cursor.execute(
-                f"SELECT file_id FROM images WHERE images.hashsum = '{hashsum}'")
-        for file_id in file_ids:
-            for tag in new_tags:
-                self.cursor.execute(f"INSERT INTO tags (file_id, tag_name) VALUES ({file_id}, '{tag}')")
+    def add_tags_to_file_in_catalog(self, file_id = None, file_path = None, hashsum = None, *new_tags):
+        assert file_path is not None or hashsum is not None or file_id is not None
+        if not file_id:
+            if file_path and hashsum:
+                file_id = self.cursor.execute(
+                    f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' AND images.hashsum = '{hashsum}' LIMIT 1")
+            elif file_path:
+                file_id = self.cursor.execute(
+                    f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' LIMIT 1")
+            elif hashsum:
+                file_id = self.cursor.execute(
+                    f"SELECT file_id FROM images WHERE images.hashsum = '{hashsum}' LIMIT 1")
+        for tag in new_tags:
+            tag_count = self.cursor.execute(f"SELECT count(*) WHERE tag_name = '{tag}'")
+            if tag_count == 0:
+                self.cursor.execute(f"INSERT INTO tags (tag_name) VALUES ('{tag}')")
+            new_tag_id = self.cursor.execute(f"SELECT tag_id WHERE tag_name = '{tag}' LIMIT 1")
+            self.cursor.execute(f"INSERT INTO file_tags (file_id, tag_id) VALUES ({file_id}, {new_tag_id})")
         self.connection.commit()
 
 
@@ -285,3 +303,11 @@ class CatalogDatabase:
                 AND images.hashsum = '{hashsum}'
         """)
         self.connection.commit()
+
+if __name__ == "__main__":
+    db = CatalogDatabase()
+    for file_path in index_files("../../../Downloads", "png", "jpg", "bmp"):
+        db.add_file_to_catalog(file_path)
+        for file_id, _, _, _, _ in db.get_files(file_path):
+            new_tags = get_file_tags_from_ai(file_path)
+            db.add_tags_to_file_in_catalog(file_id, new_tags)
