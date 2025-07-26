@@ -8,10 +8,10 @@ def index_files(path, *extensions):
     files, directories = list_directories_and_files_in_path(path)
     if len(files) == 0 and len(directories) == 0:
         return []
-    filtered_files = filter_on_extensions(files, *extensions)
+    filtered_files = [f"{path}/{f}" for f in filter_on_extensions(files, *extensions)]
     for directory in directories:
         filtered_files.extend(
-            [f"{path}/{directory}/{f}" for f in index_files(f"{path}/{directory}", *extensions)])
+            [f for f in index_files(f"{path}/{directory}", *extensions)])
     return filtered_files
 
 
@@ -99,7 +99,7 @@ class CatalogDatabase:
                 file_path VARCHAR NOT NULL,
                 date VARCHAR, 
                 hashsum VARCHAR NOT NULL, 
-                status INTEGER DEFAULT {self.STATUS_NEW}
+                status INTEGER DEFAULT {self.STATUS_NEW} NOT NULL
             )""")
         self.cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS file_tags(
@@ -155,14 +155,24 @@ class CatalogDatabase:
     def add_file_to_catalog(self, file_path):
         date_string = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         hashsum = CatalogDatabase.sha256sum(file_path)
-        self.cursor.execute(f"""
-            INSERT INTO images VALUES (
-                NULL, 
-                '{file_path}', 
-                '{date_string}', 
-                '{hashsum}', 
-                NULL)
-            """)
+        escaped_file_path = file_path.replace("'","''")
+        script = f"""
+            INSERT INTO images (
+                    file_path,
+                    date,
+                    hashsum
+                )
+                VALUES (
+                    '{escaped_file_path}', 
+                    '{date_string}', 
+                    '{hashsum}'
+                )
+            """
+        try:
+            self.cursor.execute(script)
+        except sqlite3.OperationalError as e:
+            print(e)
+            print(f"Script: {script}")
         self.connection.commit()
 
 
@@ -172,7 +182,7 @@ class CatalogDatabase:
         for tag in tags:
             count = self.cursor.execute(f"SELECT count(*) FROM tags WHERE tag_name = '{tag}'").fetchone()[0]
             if count == 0:
-                self.cursor.execute(f"INSERT INTO tags VALUES (NULL, '{tag}')")
+                self.cursor.execute(f"INSERT INTO tags (tag_name) VALUES ('{tag}')")
                 commit = True
         if commit:
             self.connection.commit()
