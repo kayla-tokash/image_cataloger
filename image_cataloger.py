@@ -352,9 +352,10 @@ class CatalogDatabase:
 
 
     def remove_file_from_catalog(self, file_path, hashsum=None):
+        escaped_file_path = file_path.replace("'", "''")
         self.cursor.execute(f"""
             DELETE FROM images
-                WHERE images.file_path = '{file_path}'
+                WHERE images.file_path = '{escaped_file_path}'
                 AND images.hashsum = '{hashsum}'
         """)
         self.connection.commit()
