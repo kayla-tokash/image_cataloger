@@ -34,7 +34,8 @@ SKIP_TAGS = ["IMAGE", "APPEARS", "BACKGROUND", "SUGGESTING", "SEEMS", "TOP", "MI
      "HIGHLIGHTS", "HIGHLIGHTING", "GIVES", "ADDITIONALLY", "ACHIEVE", "MAY", "WEARING",
      "WITHIN", "IMAGESHOWS", "INDICATING", "IMAGEDISPLAYS", "MOVES", "MADE", "IMAGECAPTURES",
      "CONTRIBUTING", "VIEWBEYOND", "MIDDLEGROUND", "EMPHASIZING", "DISTANCE", "DOMINATED",
-     "BEYOND"
+     "BEYOND", "EITHERSIDE", "MEET", "EITHERDAWN", "EITHERSUNSET", "PROVIDEADDITIONALCONTEXT",
+     "TYPICAL", "EITHERSUNRISE", "PROVIDEADDITIONALCONTEXT", "APPEAR"
 ]
 
 def load_nltk():
@@ -82,6 +83,7 @@ def get_file_tags_from_ai(image_file_path):
         # Removed SQL breaking characters
         cleaned_tag = re.sub(r"[-# .0-9:!',|\"]","",phrase).upper()
         if cleaned_tag in SKIP_TAGS:
+            print(f"Skipping tag {cleaned_tag}")
             continue
         if len(cleaned_tag) > 1:
             tags.append(cleaned_tag)
