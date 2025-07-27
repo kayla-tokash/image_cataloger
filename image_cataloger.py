@@ -33,7 +33,8 @@ SKIP_TAGS = ["IMAGE", "APPEARS", "BACKGROUND", "SUGGESTING", "SEEMS", "TOP", "MI
      "LIGHTINGSUGGESTS", "INDICATES", "INDICATE", "ILLUSTRATE", "HOWEVER",
      "HIGHLIGHTS", "HIGHLIGHTING", "GIVES", "ADDITIONALLY", "ACHIEVE", "MAY", "WEARING",
      "WITHIN", "IMAGESHOWS", "INDICATING", "IMAGEDISPLAYS", "MOVES", "MADE", "IMAGECAPTURES",
-     "CONTRIBUTING", "VIEWBEYOND", "MIDDLEGROUND", "EMPHASIZING"
+     "CONTRIBUTING", "VIEWBEYOND", "MIDDLEGROUND", "EMPHASIZING", "DISTANCE", "DOMINATED",
+     "BEYOND"
 ]
 
 def load_nltk():
@@ -178,17 +179,19 @@ class CatalogDatabase:
     def mark_file_status(self, status, file_path = None, hashsum = None):
         assert file_path is not None or hashsum is not None
         if file_path and hashsum:
+            escaped_file_path = file_path.replace("'", "''")
             self.cursor.execute(f"""
                 UPDATE images 
                     SET status = {status} 
-                    WHERE images.file_path = '{file_path}' 
+                    WHERE images.file_path = '{escaped_file_path}' 
                     AND images.hashsum = '{hashsum}'
                 """)
         elif file_path:
+            escaped_file_path = file_path.replace("'", "''")
             self.cursor.execute(f"""
                 UPDATE images 
                     SET status = {status} 
-                    WHERE images.file_path = '{file_path}' 
+                    WHERE images.file_path = '{escaped_file_path}' 
                 """)
         elif hashsum:
             self.cursor.execute(f"""
@@ -249,15 +252,17 @@ class CatalogDatabase:
 
     def get_files(self, file_path = None, hashsum = None, status = STATUS_NEW):
         if file_path and hashsum:
+            escaped_file_path = file_path.replace("'", "''")
             return self.cursor.execute(f"""
                 SELECT * FROM images 
-                    WHERE file_path = '{file_path}'
+                    WHERE file_path = '{escaped_file_path}'
                     AND hashsum = '{hashsum}'
                     AND status = {status}""")
         elif file_path:
+            escaped_file_path = file_path.replace("'", "''")
             return self.cursor.execute(f"""
                 SELECT * FROM images 
-                    WHERE file_path = '{file_path}'
+                    WHERE file_path = '{escaped_file_path}'
                     AND status = {status}""")
         elif hashsum:
             return self.cursor.execute(f"""
@@ -298,11 +303,13 @@ class CatalogDatabase:
         assert file_path is not None or hashsum is not None or file_id is not None
         if not file_id:
             if file_path and hashsum:
+                escaped_file_path = file_path.replace("'", "''")
                 file_id = self.cursor.execute(
-                    f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' AND images.hashsum = '{hashsum}' LIMIT 1")
+                    f"SELECT file_id FROM images WHERE images.file_path = '{escaped_file_path}' AND images.hashsum = '{hashsum}' LIMIT 1")
             elif file_path:
+                escaped_file_path = file_path.replace("'", "''")
                 file_id = self.cursor.execute(
-                    f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' LIMIT 1")
+                    f"SELECT file_id FROM images WHERE images.file_path = '{escaped_file_path}' LIMIT 1")
             elif hashsum:
                 file_id = self.cursor.execute(
                     f"SELECT file_id FROM images WHERE images.hashsum = '{hashsum}' LIMIT 1")
@@ -328,11 +335,13 @@ class CatalogDatabase:
         assert file_path is not None or hashsum is not None
         file_ids = None
         if file_path and hashsum:
+            escaped_file_path = file_path.replace("'", "''")
             file_ids = self.cursor.execute(
-                f"SELECT file_id FROM images WHERE images.file_path = '{file_path}' AND images.hashsum = '{hashsum}'")
+                f"SELECT file_id FROM images WHERE images.file_path = '{escaped_file_path}' AND images.hashsum = '{hashsum}'")
         elif file_path:
+            escaped_file_path = file_path.replace("'", "''")
             file_ids = self.cursor.execute(
-                f"SELECT file_id FROM images WHERE images.file_path = '{file_path}'")
+                f"SELECT file_id FROM images WHERE images.file_path = '{escaped_file_path}'")
         elif hashsum:
             file_ids = self.cursor.execute(
                 f"SELECT file_id FROM images WHERE images.hashsum = '{hashsum}'")
