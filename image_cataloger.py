@@ -4,6 +4,12 @@ from os import listdir
 from os.path import isfile, isdir, join
 import re
 import ollama
+from rake_nltk import Rake
+import nltk
+
+def load_nltk():
+    nltk.download('stopwords')
+    nltk.download('punkt_tab')
 
 # TODO asynchronously index files
 def index_files(path, *extensions):
@@ -32,15 +38,20 @@ def get_file_tags_from_ai(image_file_path):
         model='llava',
         messages=[{
                 'role': 'user',
-                'content': 'create a list of tags that describe this image:',
+                'content': 'describe this image:',
                 'images': [image_file_path]
         }]
     )
 
     tags = []
-    for line in result['message']['content'].split('\n'):
+    rake = Rake()
+    rake.extract_keywords_from_text(result['message']['content'])
+
+    for phrase in rake.get_ranked_phrases():
+        # FFS Cannot fight the stupid AI
+        # https://pypi.org/project/rake-nltk/ will take care of it
         cleaned_tag = (
-            re.sub(r"[-# .0-9]","",line).upper())
+            re.sub(r"[-# .0-9:!]","",phrase).upper())
 
         if len(cleaned_tag) > 0:
             tags.append(cleaned_tag)
@@ -313,6 +324,7 @@ class CatalogDatabase:
         self.connection.commit()
 
 if __name__ == "__main__":
+    load_nltk() # check if this needs to run every time
     db = CatalogDatabase()
     print("Created catalog database")
     for file_path in index_files("../../../Downloads", "png", "jpg", "bmp"):
