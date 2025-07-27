@@ -14,7 +14,18 @@ project is still in early development and may have limited features and stabilit
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the TBD. See the [LICENSE](#) file for details. Some rights reserved.
+
+## Requirements
+
+Python Packages:
+ - ollama
+ - rake_nltk
+
+Ollama AI Model:
+ - [llava](https://ollama.com/library/llava)
+
+## 
 
 ---
 

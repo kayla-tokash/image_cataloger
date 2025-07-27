@@ -37,27 +37,22 @@ def get_file_tags_from_ai(image_file_path):
     result = ollama.chat(
         model='llava',
         messages=[{
-                'role': 'user',
-                'content': 'describe this image:',
-                'images': [image_file_path]
+            'role': 'user',
+            'content': 'describe this image:',
+            'images': [image_file_path]
         }]
     )
 
     tags = []
     rake = Rake()
     rake.extract_keywords_from_text(result['message']['content'])
+    # https://pypi.org/project/rake-nltk/ simplifies the text
 
     for phrase in rake.get_ranked_phrases():
-        # FFS Cannot fight the stupid AI
-        # https://pypi.org/project/rake-nltk/ will take care of it
-        cleaned_tag = (
-            re.sub(r"[-# .0-9:!]","",phrase).upper())
-
+        # Removed SQL breaking characters
+        cleaned_tag = re.sub(r"[-# .0-9:!',]","",phrase).upper()
         if len(cleaned_tag) > 0:
             tags.append(cleaned_tag)
-
-    print(f"Tags for \"{image_file_path}\": {tags}")
-
     return tags
 
 
@@ -324,7 +319,7 @@ class CatalogDatabase:
         self.connection.commit()
 
 if __name__ == "__main__":
-    load_nltk() # check if this needs to run every time
+    load_nltk()
     db = CatalogDatabase()
     print("Created catalog database")
     for file_path in index_files("../../../Downloads", "png", "jpg", "bmp"):
@@ -334,3 +329,5 @@ if __name__ == "__main__":
             new_tags = get_file_tags_from_ai(file_path)
             print(f"New tags: {new_tags}")
             db.add_tags_to_file_in_catalog(file_id, None, None, *new_tags)
+
+    # SELECT tag_name,count(tag_name) AS occurances FROM file_tags INNER JOIN tags ON file_tags.tag_id = tags.tag_id GROUP BY tag_name ORDER BY occurances DESC LIMIT 20;
