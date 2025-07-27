@@ -7,6 +7,35 @@ import ollama
 from rake_nltk import Rake
 import nltk
 
+# AI with rake comes up with a lot of unnecessary tags that won't be helpful
+SKIP_TAGS = ["IMAGE", "APPEARS", "BACKGROUND", "SUGGESTING", "SEEMS", "TOP", "MIGHT",
+     "LEFTSIDE", "FOREGROUND", "CENTER", "POSSIBLY", "FOCUS", "LOOKSLIKE", "COULD",
+     "SUGGESTS", "RIGHT", "OVERALLSTYLE", "INDICATED", "VISIBLE", "BOTTOM", "USED",
+     "TAKEN", "RESEMBLES", "LEFT", "GIVING", "ALSO", "PART", "CREATING", "FRONT",
+     "BOTTOMRIGHTCORNER", "RIGHTSIDE", "IMAGEAPPEARS", "CONTRASTS", "DETAILS",
+     "ADDING", "POSSIBLYINDICATING", "IMAGESUGGESTS", "IMAGEFEATURES", "SUGGEST",
+     "SIDE," "SEEM", "RELATED", "IMAGEDEPICTS", "BOTTOMLEFTCORNER", "SEEN", "SORT",
+     "PLACED", "LIKELY", "LEFTPHOTO", "INCLUDES", "TOPRIGHTCORNER", "STRAIGHTFORWARD",
+     "SHOWCASING", "SETTING", "SEE", "REPRESENT", "PROVIDE", "PROMINENTLY",
+     "POSSIBLYRELATED", "POSITIONED", "MOMENT", "MIDDLE", "LIKELYINTENDED",
+     "LIKEFEATURES", "INDICATIVE", "GIVEN", "GIVE", "FOLLOWED", "FEATURING", "ALONG",
+     "SURROUNDING", "SHOW", "SHOWS", "SET", "SAYS", "RESULTING", "RESEMBLING",
+     "PROVIDING", "PROVIDES", "PHOTOAPPEARS", "PERHAPS", "LIKESTRUCTURE",
+     "LIKELYREPRESENTING", "IMAGESEEMS", "DIGITALARTWORKFEATURING", "CREATE",
+     "COMPOSITION", "CHARACTERIZED", "BACKGROUNDSHOWS", "BACKGROUNDBEHIND", "ASSOCIATED",
+     "USE", "WAY", "UPPERPART", "TOPLEFTCORNER", "SIMILARMATERIAL", "SIMILARACTIVITIES",
+     "SHOWN", "SETTINGSUGGESTS", "RESEMBLE", "PURPOSES", "PROVIDED",
+     "POSSIBLYREPRESENTING", "POSITION", "PHOTOSUGGESTS", "PHOTOGRAPHTAKEN",
+     "PHOTOGRAPHSEEMS", "OVERALLTONE", "OVERALLSCENESUGGESTS", "OVERALLIMPRESSION",
+     "OVERALLIMAGE", "OVERALLATMOSPHERE", "OVERALLAPPEARANCE", "OVERALL",
+     "OFTENASSOCIATED", "MID", "LOWERRIGHTCORNER", "LOWERLEFTCORNER", "LOW",
+     "LOCATEDWITHIN", "LIKELYUSED", "LIKELYTAKEN", "LIKECREATURE", "LIKEAPPEARANCE",
+     "LIGHTINGSUGGESTS", "INDICATES", "INDICATE", "ILLUSTRATE", "HOWEVER",
+     "HIGHLIGHTS", "HIGHLIGHTING", "GIVES", "ADDITIONALLY", "ACHIEVE", "MAY", "WEARING",
+     "WITHIN", "IMAGESHOWS", "INDICATING", "IMAGEDISPLAYS", "MOVES", "MADE", "IMAGECAPTURES",
+     "CONTRIBUTING", "VIEWBEYOND", "MIDDLEGROUND", "EMPHASIZING"
+]
+
 def load_nltk():
     nltk.download('stopwords')
     nltk.download('punkt_tab')
@@ -38,7 +67,7 @@ def get_file_tags_from_ai(image_file_path):
         model='llava',
         messages=[{
             'role': 'user',
-            'content': 'describe this image:',
+            'content': 'Avoiding speculative words, describe the contents of this image:',
             'images': [image_file_path]
         }]
     )
@@ -50,8 +79,10 @@ def get_file_tags_from_ai(image_file_path):
 
     for phrase in rake.get_ranked_phrases():
         # Removed SQL breaking characters
-        cleaned_tag = re.sub(r"[-# .0-9:!',]","",phrase).upper()
-        if len(cleaned_tag) > 0:
+        cleaned_tag = re.sub(r"[-# .0-9:!',|\"]","",phrase).upper()
+        if cleaned_tag in SKIP_TAGS:
+            continue
+        if len(cleaned_tag) > 1:
             tags.append(cleaned_tag)
     return tags
 
@@ -141,6 +172,7 @@ class CatalogDatabase:
                     REFERENCES tags(tag_id)
                     ON DELETE CASCADE
             )""")
+        print("TABLES Created")
 
 
     def mark_file_status(self, status, file_path = None, hashsum = None):
@@ -322,7 +354,7 @@ if __name__ == "__main__":
     load_nltk()
     db = CatalogDatabase()
     print("Created catalog database")
-    for file_path in index_files("../../../Downloads", "png", "jpg", "bmp"):
+    for file_path in index_files("../../../Downloads/4k", "png", "jpg", "bmp"):
         db.add_file_to_catalog(file_path)
         print(f"Added {file_path} to catalog")
         for file_id, _, _, _, _ in db.get_files(file_path):
